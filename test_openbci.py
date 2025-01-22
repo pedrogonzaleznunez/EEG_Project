@@ -1,27 +1,11 @@
 from open_bci_v3 import OpenBCIBoard
-
-import numpy as np
-
-
 from Plotter import Plotter
-import matplotlib.pyplot as plt
-
-import time
-
 import serial
 import time
-
 import numpy as np
-
-
-from Plotter import Plotter
 import matplotlib.pyplot as plt
-
-import time
-
 from RealTimeFilter import butter_bandpass
 from scipy.fft import rfft, rfftfreq
-
 from scipy.signal import butter, lfilter, iirnotch, filtfilt
 
 from Fps import Fps
