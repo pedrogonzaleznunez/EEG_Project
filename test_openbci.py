@@ -1,37 +1,43 @@
-import sys
-sys.path.append('/Users/pedrogonzaleznunez/Documents/GitHub/EEG_Signals')
-
-from python_scientific.signalfeatures import butter_bandpass
-
-from open_bci_v3 import OpenBCIBoard
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.fft import rfft, rfftfreq
-from scipy.signal import butter, lfilter, iirnotch, filtfilt
-
+# import sys
+# import time
+# sys.path.append('/Users/pedrogonzaleznunez/Documents/GitHub/EEG_Signals')
+# from python_scientific.signalfeatures import butter_bandpass
+# import numpy as np
+# import matplotlib.pyplot as plt
+# from scipy.fft import rfft, rfftfreq
+#from RealTimeFilter import butter_bandpass
 #from Plotter import Plotter
 #import serial
 #import time
 
-#from RealTimeFilter import butter_bandpass
+from open_bci_v3 import OpenBCIBoard
+from scipy.signal import butter, lfilter, iirnotch, filtfilt
 
 from Fps import Fps
+
+############################################################################################################
+# imported method from python_scientific.signalfeatures
+def butter_bandpass(lowcut, highcut, fs, order=5):
+    nyq = 0.5 * fs
+    low = lowcut / nyq
+    high = highcut / nyq
+    b, a = butter(order, [low, high], btype='band')
+    return b, a
 
 ############################################################################################################
 
 repetitions = 0
 
-def plot_spectrum(N, series, fs):
-    yf = rfft(series)
-    xf = rfftfreq(N, 1/fs)
-
-    plt.figure(figsize=(14,7))
-    plt.title('Frequency Spectrum')
-    plt.plot(xf, np.abs(yf), color='green')
-    plt.ylabel('Amplitude')
-    plt.xlabel('Freq Hz')
-    plt.show()
-
+# def plot_spectrum(N, series, fs):
+#     yf = rfft(series)
+#     xf = rfftfreq(N, 1/fs)
+#
+#     plt.figure(figsize=(14,7))
+#     plt.title('Frequency Spectrum')
+#     plt.plot(xf, np.abs(yf), color='green')
+#     plt.ylabel('Amplitude')
+#     plt.xlabel('Freq Hz')
+#     plt.show()
 
 def notch_filter(series, fs):
     f0 = 50.0
@@ -46,15 +52,12 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
     y = lfilter(b,a,data)
     return y
 
-
 ffps = Fps()
 ffps.tic()
 
 def handle_sample(sample):
     ffps.steptoc()
-
     print( f"Estimated frames per second: {ffps.fps} - Sample: {sample.channel_data[0]} ")
-
 
 if __name__ == '__main__':
 
