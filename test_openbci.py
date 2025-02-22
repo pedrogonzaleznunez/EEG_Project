@@ -9,11 +9,12 @@
 #from Plotter import Plotter
 #import serial
 #import time
+
 import csv
-import time
-
+import numpy as np
+import pandas as pd
+from scipy.fft import rfft, rfftfreq
 from matplotlib import pyplot as plt
-
 from Plotter import Plotter
 from open_bci_v3 import OpenBCIBoard
 from scipy.signal import butter, lfilter, iirnotch, filtfilt
@@ -31,17 +32,6 @@ def butter_bandpass(lowcut, highcut, fs, order=5):
 
 ############################################################################################################
 
-# def plot_spectrum(N, series, fs):
-#     yf = rfft(series)
-#     xf = rfftfreq(N, 1/fs)
-#
-#     plt.figure(figsize=(14,7))
-#     plt.title('Frequency Spectrum')
-#     plt.plot(xf, np.abs(yf), color='green')
-#     plt.ylabel('Amplitude')
-#     plt.xlabel('Freq Hz')
-#     plt.show()
-
 def notch_filter(series, fs):
     f0 = 50.0
     Q = 30.0
@@ -58,14 +48,17 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
 ffps = Fps()
 ffps.tic()
 
-def create_csv():
+def create_csv(csv_filename='sample.csv'):
     """Crea el archivo CSV con los encabezados adecuados."""
     with open(csv_filename, mode='w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(["Repetition", "Sample Value", "FPS"])  # Encabezados
+        if f.tell() == 0:  # Solo escribe el encabezado si el archivo está vacío
+            writer = csv.writer(f)
+            writer.writerow(["Repetition", "Sample Value", "FPS"])
+
 
 def handle_sample(sample):
     ffps.steptoc()
+    csv_filename = 'sample.csv'
 
     sample_value = sample.channel_data[2]  # Extraer el dato relevante
     fps_value = ffps.fps  # Calcular FPS estimado
@@ -85,12 +78,17 @@ def handle_sample(sample):
         print("Se alcanzó el límite de muestras, cerrando...")
         #plot the file 'sample.csv'
         plot_from_csv(csv_filename)
+        transformada_fourier(csv_filename)
+        stop_streaming()
         exit()
 
 
 def plot_from_csv(filename):
+    print("Plotting from CSV file...")
     tiempos = []
     muestras = []
+
+    csv_filename = 'sample.csv'
 
     fs = 250  # Frecuencia de muestreo (250 muestras por segundo)
     dt = 1 / fs  # Intervalo de tiempo entre muestras
@@ -120,25 +118,51 @@ def plot_from_csv(filename):
     plt.grid()
     plt.show()
 
+def transformada_fourier(filename):
+    print("Applying Fourier Transform...")
+    # Cargar datos desde el archivo CSV
+    archivo_csv = '/Users/pedrogonzaleznunez/Documents/GitHub/EEG_Signals/sample.csv'  # Reemplazar con la ruta correcta
+    # datos = pd.read_csv(archivo_csv, delimiter=',', names=['Repetition','Sample Value','FPS'])
+    datos = pd.read_csv(archivo_csv, delimiter=',', header=0)
+
+    # Extraer la señal EEG
+    # eeg_signal = datos['Sample Value'].values
+    eeg_signal = pd.to_numeric(datos['Sample Value'], errors='coerce')
+    eeg_signal = eeg_signal.dropna().values  # Elimina filas con valores NaN
+
+    Fs = 250.0  # Frecuencia de muestreo en Hz
+    N = len(eeg_signal)  # Número de muestras
+
+    # Aplicar Transformada de Fourier
+    yf = rfft(eeg_signal)
+    xf = rfftfreq(N, 1 / Fs)
+
+    # Graficar el espectro de frecuencia
+    plt.figure(figsize=(12, 6))
+    plt.title('Espectro de Frecuencia de la Señal EEG')
+    plt.plot(xf, np.abs(yf), color='blue')
+    plt.xlabel('Frecuencia (Hz)')
+    plt.ylabel('Amplitud')
+    plt.grid()
+    plt.show()
+
+def stop_streaming():
+    board.checktimer.cancel()
+    board.disconnect()
+
 if __name__ == '__main__':
 
     repetitions = 0
     fs = 250.0
     csv_filename = 'sample.csv'
 
-    create_csv()
-
+    create_csv(csv_filename)
     board = OpenBCIBoard()
     board.print_register_settings()
     board.get_radio_channel_number()
     print(f'OpenBCI connected to radio channel {board.radio_channel_number}')
 
-
     board.start_streaming(handle_sample)
 
-    #print('Closing up everything....')
-    board.checktimer.cancel()
-
-    board.disconnect()
 
     print('Done!')
