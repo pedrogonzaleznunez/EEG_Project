@@ -9,7 +9,12 @@
 #from Plotter import Plotter
 #import serial
 #import time
+import csv
+import time
 
+from matplotlib import pyplot as plt
+
+from Plotter import Plotter
 from open_bci_v3 import OpenBCIBoard
 from scipy.signal import butter, lfilter, iirnotch, filtfilt
 
@@ -25,8 +30,6 @@ def butter_bandpass(lowcut, highcut, fs, order=5):
     return b, a
 
 ############################################################################################################
-
-repetitions = 0
 
 # def plot_spectrum(N, series, fs):
 #     yf = rfft(series)
@@ -55,18 +58,81 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
 ffps = Fps()
 ffps.tic()
 
+def create_csv():
+    """Crea el archivo CSV con los encabezados adecuados."""
+    with open(csv_filename, mode='w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["Repetition", "Sample Value", "FPS"])  # Encabezados
+
 def handle_sample(sample):
     ffps.steptoc()
-    print( f"Estimated frames per second: {ffps.fps} - Sample: {sample.channel_data[0]} ")
+
+    sample_value = sample.channel_data[2]  # Extraer el dato relevante
+    fps_value = ffps.fps  # Calcular FPS estimado
+
+    global repetitions
+    #print( f"Estimated frames per second: {ffps.fps} - Sample: {sample.channel_data[2]} ")
+
+    print(f"Estimated FPS: {fps_value:.2f} - Sample: {sample_value}")
+
+    # Guardar en CSV
+    with open(csv_filename, mode='a', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow([repetitions, sample_value, fps_value])
+
+    repetitions += 1
+    if repetitions >= 2500:
+        print("Se alcanzó el límite de muestras, cerrando...")
+        #plot the file 'sample.csv'
+        plot_from_csv(csv_filename)
+        exit()
+
+
+def plot_from_csv(filename):
+    tiempos = []
+    muestras = []
+
+    fs = 250  # Frecuencia de muestreo (250 muestras por segundo)
+    dt = 1 / fs  # Intervalo de tiempo entre muestras
+
+    # Leer el archivo CSV
+    with open(filename, newline='') as csvfile:
+        reader = csv.reader(csvfile)
+        next(reader)  # Saltar el encabezado
+
+        for row in reader:
+            repetition = int(row[0])
+            sample_value = float(row[1])
+
+            # Convertir la repetición a tiempo (segundos)
+            time_sec = repetition * dt
+
+            tiempos.append(time_sec)
+            muestras.append(sample_value)
+
+    # Graficar
+    plt.figure(figsize=(12, 6))
+    plt.plot(tiempos, muestras, color='b', label="Señal EEG (mV)")
+    plt.xlabel("Tiempo (s)")
+    plt.ylabel("Amplitud (mV)")
+    plt.title("Señal EEG en el tiempo")
+    plt.legend()
+    plt.grid()
+    plt.show()
 
 if __name__ == '__main__':
 
+    repetitions = 0
     fs = 250.0
+    csv_filename = 'sample.csv'
+
+    create_csv()
 
     board = OpenBCIBoard()
     board.print_register_settings()
     board.get_radio_channel_number()
     print(f'OpenBCI connected to radio channel {board.radio_channel_number}')
+
 
     board.start_streaming(handle_sample)
 
