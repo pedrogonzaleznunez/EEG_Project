@@ -5,3 +5,4 @@ DS_Store
 python_scientific
 .gitattributes
 .csv
+.DS_Store
